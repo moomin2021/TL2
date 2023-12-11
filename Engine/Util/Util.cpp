@@ -3,6 +3,8 @@
 #include <Windows.h>
 #include <chrono>
 #include <random>
+#include <locale>
+#include <codecvt>
 
 using namespace std::chrono;
 
@@ -88,4 +90,49 @@ uint64_t Util::GetTimeSec()
 uint64_t Util::GetTimrMSec()
 {
 	return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
+std::wstring Util::ConvertStringToWstring(const std::string& src)
+{
+	// SJIS → wstring
+	uint16_t iBufferSize = (uint16_t)MultiByteToWideChar(CP_ACP, 0, src.c_str()
+		, -1, (wchar_t*)NULL, 0);
+
+	// バッファの取得
+	wchar_t* cpUCS2 = new wchar_t[iBufferSize];
+
+	// SJIS → wstring
+	MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, cpUCS2
+		, iBufferSize);
+
+	// stringの生成
+	std::wstring oRet(cpUCS2, cpUCS2 + iBufferSize - 1);
+
+	// バッファの破棄
+	delete[] cpUCS2;
+
+	// 変換結果を返す
+	return(oRet);
+}
+
+std::string Util::ConvertWstringToString(const std::wstring& src)
+{
+	uint16_t iBufferSize = (uint16_t)WideCharToMultiByte(CP_OEMCP, 0, src.c_str()
+		, -1, (char*)NULL, 0, NULL, NULL);
+
+	// バッファの取得
+	CHAR* cpMultiByte = new CHAR[iBufferSize];
+
+	// wstring → SJIS
+	WideCharToMultiByte(CP_OEMCP, 0, src.c_str(), -1, cpMultiByte
+		, iBufferSize, NULL, NULL);
+
+	// stringの生成
+	std::string oRet(cpMultiByte, cpMultiByte + iBufferSize - 1);
+
+	// バッファの破棄
+	delete[] cpMultiByte;
+
+	// 変換結果を返す
+	return(oRet);
 }

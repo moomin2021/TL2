@@ -14,7 +14,7 @@ void GameScene::Initialize()
 #pragma endregion
 
 #pragma region テクスチャ読み込み
-	texture_ = LoadTexture("Sprite/hae.png");
+	texture_ = LoadTexture("Sprite/F-jpTtFbMAA4Zjh.dds");
 #pragma endregion
 }
 

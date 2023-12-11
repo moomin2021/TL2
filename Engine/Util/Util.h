@@ -92,4 +92,7 @@ namespace Util {
 	/// </summary>
 	/// <returns> 時間(ms) </returns>
 	uint64_t GetTimrMSec();
+
+	std::wstring ConvertStringToWstring(const std::string& src);
+	std::string ConvertWstringToString(const std::wstring& src);
 } // namespace MathUtility
