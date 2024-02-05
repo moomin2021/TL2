@@ -23,7 +23,7 @@ void Texture::Initialize() {
 	CreateDescriptorHeap();
 
 	// デバック用のテクスチャを読み込む
-	LoadTexture("Sprite/debug.png");
+	LoadTexture("Sprite/debug.dds");
 }
 
 void Texture::LoadImageFile(const std::string filePath, DirectX::ScratchImage& scratchImage, DirectX::TexMetadata& metadata, FileName fileName)
@@ -49,22 +49,6 @@ void Texture::LoadImageFile(const std::string filePath, DirectX::ScratchImage& s
 			&metadata, scratchImage
 		);
 		assert(SUCCEEDED(result));
-	}
-
-	// ミップマップ生成
-	ScratchImage mipChain{};
-	result = GenerateMipMaps(
-		scratchImage.GetImages(),
-		scratchImage.GetImageCount(),
-		scratchImage.GetMetadata(),
-		TEX_FILTER_SRGB,
-		0, mipChain
-	);
-
-	// ミップマップが正常に生成されたら
-	if (SUCCEEDED(result)) {
-		scratchImage = move(mipChain);
-		metadata = scratchImage.GetMetadata();
 	}
 
 	// 読み込んだディフューズテクスチャをSRGBとして扱う
@@ -185,23 +169,20 @@ uint16_t Texture::LoadTexture(const std::string fileName)
 		return texHandle_[file.fileName];
 	}
 
-	TexMetadata metadata{};
-	ScratchImage scratchImage{};
-
 	// 画像読み込み
-	LoadImageFile(path, scratchImage, metadata, file);
+	LoadImageFile(path, scratchImage_, metaData_, file);
 
 	D3D12_RESOURCE_DESC texResourceDesc{};
 	ID3D12Resource* texResource{};
 	
 	// テクスチャバッファの生成
-	texResource = CreateTextureResource(metadata, texResourceDesc);
+	texResource = CreateTextureResource(metaData_, texResourceDesc);
 
 	// テクスチャバッファにデータを転送
-	intermediateResources_.emplace_back(UploadTextureData(texResource, scratchImage));
+	intermediateResources_.emplace_back(UploadTextureData(texResource, scratchImage_));
 
 	// 読み込んだディフューズテクスチャをSRGBとして扱う
-	metadata.format = MakeSRGB(metadata.format);
+	metaData_.format = MakeSRGB(metaData_.format);
 
 	// CBV, SRV, UAVの1個分のサイズを取得
 	UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -228,6 +209,8 @@ uint16_t Texture::LoadTexture(const std::string fileName)
 
 	// カウンターを進める
 	loadCounter_++;
+
+	SaveDDSTextureToFile(file);
 
 	// ハンドルを返す
 	return handle;
@@ -457,4 +440,45 @@ FileName Texture::SeparateFilePath(const std::wstring& filePath)
 uint16_t LoadTexture(const std::string fileName) {
 	// 画像読み込み
 	return Texture::GetInstance()->LoadTexture(fileName);
+}
+
+void Texture::SaveDDSTextureToFile(FileName fileName)
+{
+	HRESULT result;
+
+	// ミップマップ生成
+	ScratchImage mipChain{};
+	result = GenerateMipMaps(
+		scratchImage_.GetImages(),
+		scratchImage_.GetImageCount(),
+		scratchImage_.GetMetadata(),
+		TEX_FILTER_SRGB,
+		0, mipChain
+	);
+
+	// ミップマップが正常に生成されたら
+	if (SUCCEEDED(result))
+	{
+		scratchImage_ = move(mipChain);
+		metaData_ = scratchImage_.GetMetadata();
+	}
+
+	ScratchImage converted;
+	result = Compress(scratchImage_.GetImages(), scratchImage_.GetImageCount(), metaData_, 
+		DXGI_FORMAT_BC7_UNORM_SRGB, TEX_COMPRESS_BC7_QUICK | TEX_COMPRESS_SRGB_OUT | TEX_COMPRESS_PARALLEL, 1.0f, converted);
+	if (SUCCEEDED(result))
+	{
+		scratchImage_ = move(converted);
+		metaData_ = scratchImage_.GetMetadata();
+	}
+
+	// 読み込んだテクスチャをSRGBとして扱う
+	metaData_.format = DirectX::MakeSRGB(metaData_.format);
+
+	// 出力ファイル名を設定する
+	std::wstring filePath = fileName.directoryPath + fileName.fileName + L".dds";
+
+	// DDSファイル書き出し
+	result = DirectX::SaveToDDSFile(scratchImage_.GetImages(), scratchImage_.GetImageCount(), metaData_, DirectX::DDS_FLAGS_NONE, filePath.c_str());
+	assert(SUCCEEDED(result));
 }

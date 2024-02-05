@@ -39,6 +39,12 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle_{};
 
 	std::vector<ID3D12Resource*> intermediateResources_;
+
+	// 画像の情報
+	DirectX::TexMetadata metaData_ = {};
+
+	// 画像イメージのコンテナ
+	DirectX::ScratchImage scratchImage_ = {};
 #pragma endregion
 
 #pragma region メンバ関数
@@ -104,6 +110,11 @@ private:
 	/// </summary>
 	/// <param name="filePath"> ファイルパス </param>
 	FileName SeparateFilePath(const std::wstring& filePath);
+
+	/// <summary>
+	/// DDSテクスチャとしてファイル書き出し
+	/// </summary>
+	void SaveDDSTextureToFile(FileName fileName);
 
 #pragma endregion
 
